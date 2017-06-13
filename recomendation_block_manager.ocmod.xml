@@ -1,0 +1,196 @@
+<modification>
+    <name>Recomendation block manager modification</name>
+    <code>recomendation_block_manager</code>
+    <version>1.0</version>
+    <author>Alexander Asmakov</author>
+    <link>https://vk.com/asmakov</link>
+    <file path="catalog/model/catalog/product.php">
+        <operation>
+            <search trim="true|false" index="1"><![CDATA[
+            public function getBestSellerProducts($limit) {
+        $product_data = $this->cache->get('product.bestseller.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit);
+
+        if (!$product_data) {
+            $product_data = array();
+
+            $query = $this->db->query("SELECT op.product_id, SUM(op.quantity) AS total FROM " . DB_PREFIX . "order_product op LEFT JOIN `" . DB_PREFIX . "order` o ON (op.order_id = o.order_id) LEFT JOIN `" . DB_PREFIX . "product` p ON (op.product_id = p.product_id) LEFT JOIN " . DB_PREFIX . "product_to_store p2s ON (p.product_id = p2s.product_id) WHERE o.order_status_id > '0' AND p.status = '1' AND p.date_available <= NOW() AND p2s.store_id = '" . (int)$this->config->get('config_store_id') . "' GROUP BY op.product_id ORDER BY total DESC LIMIT " . (int)$limit);
+
+            foreach ($query->rows as $result) {
+                $product_data[$result['product_id']] = $this->getProduct($result['product_id']);
+            }
+
+            $this->cache->set('product.bestseller.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit, $product_data);
+        }
+
+        return $product_data;
+    }
+            ]]></search>
+            <add position="replace" offset="1"><![CDATA[
+            public function getBestSellerProducts($limit) {
+
+        $product_data = $this->cache->get('product.bestseller.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit);
+
+        if (!$product_data) {
+            /*Тащим id выбранных хитов из настроек модуля*/
+            $recomendation_block_manager_hit_id = $this->config->get('recomendation_block_manager_hit');
+
+            $product_data = array();
+
+            if (!empty($recomendation_block_manager_hit_id)){
+
+                /*Если не пусто, тогда переводим строку из настроек в массив и формируем массив такого же вида, как после запроса к базе*/
+                foreach (array_reverse(explode(',', $recomendation_block_manager_hit_id)) as $prod_id) {
+                    $query[] = ['product_id' => $prod_id];
+                }
+
+            }
+            else {
+                $query = $this->db->query("SELECT op.product_id, SUM(op.quantity) AS total FROM " . DB_PREFIX . "order_product op LEFT JOIN `" . DB_PREFIX . "order` o ON (op.order_id = o.order_id) LEFT JOIN `" . DB_PREFIX . "product` p ON (op.product_id = p.product_id) LEFT JOIN " . DB_PREFIX . "product_to_store p2s ON (p.product_id = p2s.product_id) WHERE o.order_status_id > '0' AND p.status = '1' AND p.date_available <= NOW() AND p2s.store_id = '" . (int)$this->config->get('config_store_id') . "' GROUP BY op.product_id ORDER BY total DESC LIMIT " . (int)$limit)->rows;
+            }
+
+        foreach ($query as $result) {
+            $product_data[$result['product_id']] = $this->getProduct($result['product_id']);
+        }
+
+            $this->cache->set('product.bestseller.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit, $product_data);
+        }
+        return $product_data;
+
+    }
+            ]]></add>
+        </operation>
+        <operation>
+            <search trim="true|false" index="1"><![CDATA[
+            public function getLatestProducts($limit) {
+        $product_data = $this->cache->get('product.latest.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit);
+
+        if (!$product_data) {
+            $query = $this->db->query("SELECT p.product_id FROM " . DB_PREFIX . "product p LEFT JOIN " . DB_PREFIX . "product_to_store p2s ON (p.product_id = p2s.product_id) WHERE p.status = '1' AND p.date_available <= NOW() AND p2s.store_id = '" . (int)$this->config->get('config_store_id') . "' ORDER BY p.date_added DESC LIMIT " . (int)$limit);
+
+            foreach ($query->rows as $result) {
+                $product_data[$result['product_id']] = $this->getProduct($result['product_id']);
+            }
+
+            $this->cache->set('product.latest.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit, $product_data);
+        }
+
+        return $product_data;
+    }
+            ]]></search>
+            <add position="replace" offset="1"><![CDATA[
+            public function getLatestProducts($limit) {
+
+        $product_data = $this->cache->get('product.latest.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit);
+
+        if (!$product_data) {
+
+            /*Тащим id выбранных новинок из настроек модуля*/
+            $recomendation_block_manager_news_id = $this->config->get('recomendation_block_manager_news');
+
+            $product_data = array();
+
+            if (!empty($recomendation_block_manager_news_id)) {
+
+                /*Если не пусто, тогда переводим строку из настроек в массив и формируем массив такого же вида, как после запроса к базе*/
+                foreach (array_reverse(explode(',', $recomendation_block_manager_news_id)) as $prod_id) {
+                    $query[] = ['product_id' => $prod_id];
+                }
+
+            } else {
+                $query = $this->db->query("SELECT p.product_id FROM " . DB_PREFIX . "product p LEFT JOIN " . DB_PREFIX . "product_to_store p2s ON (p.product_id = p2s.product_id) WHERE p.status = '1' AND p.date_available <= NOW() AND p2s.store_id = '" . (int)$this->config->get('config_store_id') . "' ORDER BY p.date_added DESC LIMIT " . (int)$limit)->rows;
+            }
+
+            foreach ($query as $result) {
+                $product_data[$result['product_id']] = $this->getProduct($result['product_id']);
+            }
+
+            $this->cache->set('product.latest.' . (int)$this->config->get('config_language_id') . '.' . (int)$this->config->get('config_store_id') . '.' . $this->config->get('config_customer_group_id') . '.' . (int)$limit, $product_data);
+        }
+
+        return $product_data;
+    }
+            ]]></add>
+        </operation>
+        <operation>
+            <search trim="true|false" index="1"><![CDATA[
+            public function getPopularProducts($limit) {
+        $product_data = array();
+
+        $query = $this->db->query("SELECT p.product_id FROM " . DB_PREFIX . "product p LEFT JOIN " . DB_PREFIX . "product_to_store p2s ON (p.product_id = p2s.product_id) WHERE p.status = '1' AND p.date_available <= NOW() AND p2s.store_id = '" . (int)$this->config->get('config_store_id') . "' ORDER BY p.viewed DESC, p.date_added DESC LIMIT " . (int)$limit);
+
+        foreach ($query->rows as $result) {
+            $product_data[$result['product_id']] = $this->getProduct($result['product_id']);
+        }
+
+        return $product_data;
+    }
+            ]]></search>
+            <add position="replace" offset="1"><![CDATA[
+            public function getPopularProducts($limit) {
+        /*Тащим id выбранных популярных товаров из настроек модуля*/
+        $recomendation_block_manager_pop_id = $this->config->get('recomendation_block_manager_popular');
+
+        $product_data = array();
+
+        if (!empty($recomendation_block_manager_pop_id)){
+
+            /*Если пусто, тогда переводим строку из настроек в массив и формируем массив такого же вида, как после запроса к базе*/
+            foreach (array_reverse(explode(',', $recomendation_block_manager_pop_id)) as $prod_id) {
+                $query[] = ['product_id' => $prod_id];
+            }
+
+        } else {
+
+            $query = $this->db->query("SELECT p.product_id FROM " . DB_PREFIX . "product p LEFT JOIN " . DB_PREFIX . "product_to_store p2s ON (p.product_id = p2s.product_id) WHERE p.status = '1' AND p.date_available <= NOW() AND p2s.store_id = '" . (int)$this->config->get('config_store_id') . "' ORDER BY p.viewed DESC, p.date_added DESC LIMIT " . (int)$limit)->rows;
+        }
+
+        foreach ($query as $result) {
+            $product_data[$result['product_id']] = $this->getProduct($result['product_id']);
+        }
+
+        return $product_data;
+    }
+            ]]></add>
+        </operation>
+    </file>
+    <file path="catalog/controller/module/latest.php">
+        <operation>
+            <search trim="true|false" index="1"><![CDATA[
+            $data['products'] = array();
+
+        $filter_data = array(
+            'sort'  => 'p.date_added',
+            'order' => 'DESC',
+            'start' => 0,
+            'limit' => $setting['limit']
+        );
+
+        $results = $this->model_catalog_product->getProducts($filter_data);
+            ]]></search>
+            <add position="replace" offset="1"><![CDATA[
+            $data['products'] = array();
+
+        /*Тащим id выбранных новинок из настроек модуля*/
+        $recomendation_block_manager_news_id = $this->config->get('recomendation_block_manager_news');
+
+        if (!empty($recomendation_block_manager_news_id)) {
+
+            foreach (array_reverse(explode(',', $recomendation_block_manager_news_id)) as $prod_id) {
+                $results[] = $this->model_catalog_product->getProduct($prod_id);
+            }
+
+        } else {
+
+            $filter_data = array(
+                'sort' => 'p.date_added',
+                'order' => 'DESC',
+                'start' => 0,
+                'limit' => $setting['limit']
+            );
+
+            $results = $this->model_catalog_product->getProducts($filter_data);
+        }
+            ]]></add>
+        </operation>
+    </file>  
+</modification>
